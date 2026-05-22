@@ -6,10 +6,21 @@
     <body>
         <h1>weather app</h1>
 
-        <form action="">
+        <form action="/weather" method="post">
             <label for="city">city</label>
             <input type="text" id="city" name="city">
+            
+            <label for="unit">unit</label>
+            <select id="unit" name="unit">
+                <option value="metric">celsius</option>
+                <option value="imperial">fahrenheit</option>
+            </select>
+
             <button type="submit">get weather</button>
         </form>
+
+        {% if city %}
+            <p>weather in {{ city }}: {{ unit }}</p>
+        {% endif %}
     </body>
 </html>
