@@ -6,7 +6,7 @@ if not settings.database_url:
     raise RuntimeError("Database URL not found.")
 
 engine = create_engine(settings.database_url)
-SessoinLocal = sessionmaker(bind=engine)
+SessionLocal = sessionmaker(bind=engine)
 
 class Base(DeclarativeBase):
     pass
