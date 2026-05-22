@@ -3,6 +3,7 @@ from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 import os
 import httpx
+from typing import Annotated
 
 load_dotenv()
 
@@ -25,7 +26,7 @@ async def weather(request : Request, city: str = Form(...), unit: str = Form(...
         context = {"error": "City not found. Please try again."}
     except httpx.RequestError:
         context = {"error": "Network error. Please try again later."}
-    return templates.TemplateResponse(request=request, name="index.html", context={"weather_data": weather_data})
+    return templates.TemplateResponse(request=request, name="index.html", context=context)
 
 def get_weather_data(city: str, unit: str) -> dict:
     api_key = os.getenv("OPENWEATHERMAP_API_KEY")
