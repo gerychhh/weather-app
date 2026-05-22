@@ -19,8 +19,9 @@
             <button type="submit">get weather</button>
         </form>
 
-        {% if city %}
-            <p>weather in {{ city }}: {{ unit }}</p>
+        {% if weather_data %}
+            <p>weather in {{ weather_data.city }}: {{ weather_data.temperature }} {{ weather_data.unit }}</p>
+            <p>{{ weather_data.description }}</p>
         {% endif %}
     </body>
 </html>
