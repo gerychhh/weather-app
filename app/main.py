@@ -27,6 +27,9 @@ async def weather(
 
     except httpx.RequestError:
         context = {"error": "Network error. Please try again later."}
+        
+    except RuntimeError:
+        context = {"error": "API key not found. Please set the OPENWEATHERMAP_API_KEY environment variable."}
 
     return templates.TemplateResponse(request=request, name="index.html", context=context)
 
