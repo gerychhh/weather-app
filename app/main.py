@@ -18,7 +18,13 @@ async def index(request : Request):
 
 @app.post("/weather")
 async def weather(request : Request, city: str = Form(...), unit: str = Form(...)):
-    weather_data = get_weather_data(city, unit)
+    try:
+        weather_data = get_weather_data(city, unit)
+        context = {"weather_data": weather_data}
+    except httpx.HTTPStatusError:
+        context = {"error": "City not found. Please try again."}
+    except httpx.RequestError:
+        context = {"error": "Network error. Please try again later."}
     return templates.TemplateResponse(request=request, name="index.html", context={"weather_data": weather_data})
 
 def get_weather_data(city: str, unit: str) -> dict:
@@ -29,6 +35,7 @@ def get_weather_data(city: str, unit: str) -> dict:
                           params={"q": city, "units": unit, "appid": api_key}, timeout=10)
     response.raise_for_status()
     data = response.json()
+    
     return {
         "city" : data["name"],
         "temperature" : data["main"]["temp"],

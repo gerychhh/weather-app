@@ -23,5 +23,9 @@
             <p>weather in {{ weather_data.city }}: {{ weather_data.temperature }} {{ weather_data.unit }}</p>
             <p>{{ weather_data.description }}</p>
         {% endif %}
+
+        {% if error %}
+            <p style="color: red;">{{ error }}</p>
+        {% endif %}
     </body>
 </html>
