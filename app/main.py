@@ -4,6 +4,9 @@ import httpx
 from typing import Annotated
 from .config import settings
 
+from app.database import SessionLocal
+from app.models import WeatherQuery
+
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -20,6 +23,7 @@ async def weather(
 ):
     try:
         weather_data = get_weather_data(city, unit)
+        save_weather_query(weather_data)
         context = {"weather_data": weather_data}
 
     except httpx.HTTPStatusError:
@@ -27,7 +31,7 @@ async def weather(
 
     except httpx.RequestError:
         context = {"error": "Network error. Please try again later."}
-        
+
     except RuntimeError:
         context = {"error": "API key not found. Please set the OPENWEATHERMAP_API_KEY environment variable."}
 
@@ -58,3 +62,16 @@ def get_weather_data(
         "description": data["weather"][0]["description"],
         "unit": unit,
     }
+
+def save_weather_query(weather_data: dict[str, str | float]) -> None:
+    with SessionLocal() as session:
+        query = WeatherQuery(
+            city=str(weather_data["city"]),
+            temperature=float(weather_data["temperature"]),
+            description=str(weather_data["description"]),
+            unit=str(weather_data["unit"]),
+            served_from_cache=False
+        )
+
+        session.add(query)
+        session.commit()
