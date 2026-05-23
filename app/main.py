@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, Query
 from fastapi.templating import Jinja2Templates
 import httpx
 from typing import Annotated
@@ -12,13 +12,18 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 @app.get("/")
-async def index(request : Request):
-    history = get_recent_queries()
+async def index(request : Request, page: int = Query(1, ge=1)):
+    history, total_pages = get_history(page=page)
 
     return templates.TemplateResponse(
         request=request, 
         name="index.html", 
-        context={"history": history})
+        context={
+            "history": history,
+            "total_pages": total_pages,
+            "page": page,
+        },
+    )
 
 @app.post("/weather")
 async def weather(
@@ -40,7 +45,11 @@ async def weather(
     except RuntimeError:
         context = {"error": "API key not found. Please set the OPENWEATHERMAP_API_KEY environment variable."}
 
-    context["history"] = get_recent_queries()
+    history, total_pages = get_history(page=1)
+
+    context["history"] = history
+    context["page"] = 1
+    context["total_pages"] = total_pages
 
     return templates.TemplateResponse(request=request, name="index.html", context=context)
 
@@ -83,6 +92,15 @@ def save_weather_query(weather_data: dict[str, str | float]) -> None:
         session.add(query)
         session.commit()
 
-def get_recent_queries() -> list[WeatherQuery]:
+def get_history(page: int, per_page: int = 10) -> tuple[list[WeatherQuery], int]:
     with SessionLocal() as session:
-        return session.query(WeatherQuery).order_by(WeatherQuery.created_at.desc()).limit(10).all()
+        total = session.query(WeatherQuery).count()
+        total_pages = (total + per_page - 1) // per_page
+        history = (
+            session.query(WeatherQuery)
+            .order_by(WeatherQuery.created_at.desc())
+            .offset((page - 1) * per_page)
+            .limit(per_page)
+            .all()
+        )
+    return history, total_pages

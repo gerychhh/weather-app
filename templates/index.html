@@ -29,6 +29,7 @@
         {% endif %}
 
         <h2>history of search</h2>
+
         {% if history %}
             <ul>
                 {% for item in history %}
@@ -37,8 +38,21 @@
                     </li>
                 {% endfor %}
             </ul>
+        
         {% else %}
             <p>no search history yet</p>
+        {% endif %}
+
+        {% if total_pages > 1 %}
+            <div>
+                {% if page > 1 %}
+                    <a href="/?page={{ page - 1 }}">previous</a>
+                {% endif %}
+                <span>page {{ page }} of {{ total_pages }}</span>
+                {% if page < total_pages %}
+                    <a href="/?page={{ page + 1 }}">next</a>
+                {% endif %}
+            </div>
         {% endif %}
     </body>
 </html>
