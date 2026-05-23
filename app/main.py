@@ -95,7 +95,7 @@ def save_weather_query(weather_data: dict[str, str | float]) -> None:
 def get_history(page: int, per_page: int = 10) -> tuple[list[WeatherQuery], int]:
     with SessionLocal() as session:
         total = session.query(WeatherQuery).count()
-        total_pages = (total + per_page - 1) // per_page
+        total_pages = max((total + per_page - 1) // per_page, 1)
         history = (
             session.query(WeatherQuery)
             .order_by(WeatherQuery.created_at.desc())
