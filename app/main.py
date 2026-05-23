@@ -12,8 +12,13 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 @app.get("/")
-async def index(request : Request, page: int = Query(1, ge=1)):
-    history, total_pages = get_history(page=page)
+async def index(
+    request: Request,
+    page: int = Query(1, ge=1),
+    city: str | None = Query(None),
+):
+    city_filter = city.strip() if city else None
+    history, total_pages = get_history(page=page, city_filter=city_filter)
 
     return templates.TemplateResponse(
         request=request, 
@@ -22,6 +27,7 @@ async def index(request : Request, page: int = Query(1, ge=1)):
             "history": history,
             "total_pages": total_pages,
             "page": page,
+            "city_filter": city_filter,
         },
     )
 
@@ -92,12 +98,21 @@ def save_weather_query(weather_data: dict[str, str | float]) -> None:
         session.add(query)
         session.commit()
 
-def get_history(page: int, per_page: int = 10) -> tuple[list[WeatherQuery], int]:
+def get_history(
+    page: int,
+    city_filter: str | None = None,
+    per_page: int = 10,
+) -> tuple[list[WeatherQuery], int]:
     with SessionLocal() as session:
-        total = session.query(WeatherQuery).count()
+        query = session.query(WeatherQuery)
+
+        if city_filter:
+            query = query.filter(WeatherQuery.city.ilike(f"%{city_filter}%"))
+
+        total = query.count()
         total_pages = max((total + per_page - 1) // per_page, 1)
         history = (
-            session.query(WeatherQuery)
+            query
             .order_by(WeatherQuery.created_at.desc())
             .offset((page - 1) * per_page)
             .limit(per_page)

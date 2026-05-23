@@ -30,6 +30,20 @@
 
         <h2>history of search</h2>
 
+        <form action="/" method="get">
+            <label for="history_city">filter by city</label>
+            <input
+                type="text"
+                id="history_city"
+                name="city"
+                value="{{ city_filter or '' }}"
+            >
+            <button type="submit">filter</button>
+            {% if city_filter %}
+                <a href="/">clear</a>
+            {% endif %}
+        </form>
+
         {% if history %}
             <ul>
                 {% for item in history %}
@@ -46,11 +60,11 @@
         {% if total_pages > 1 %}
             <div>
                 {% if page > 1 %}
-                    <a href="/?page={{ page - 1 }}">previous</a>
+                    <a href="/?page={{ page - 1 }}{% if city_filter %}&city={{ city_filter|urlencode }}{% endif %}">previous</a>
                 {% endif %}
                 <span>page {{ page }} of {{ total_pages }}</span>
                 {% if page < total_pages %}
-                    <a href="/?page={{ page + 1 }}">next</a>
+                    <a href="/?page={{ page + 1 }}{% if city_filter %}&city={{ city_filter|urlencode }}{% endif %}">next</a>
                 {% endif %}
             </div>
         {% endif %}
