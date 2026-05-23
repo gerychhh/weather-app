@@ -31,7 +31,10 @@ from app.config import settings
 if not settings.database_url:
     raise RuntimeError("Database URL not found.")
 
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option(
+    "sqlalchemy.url",
+    settings.database_url.replace("%", "%%")
+)
 target_metadata = Base.metadata
 
 
