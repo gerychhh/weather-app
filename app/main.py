@@ -13,7 +13,12 @@ templates = Jinja2Templates(directory="templates")
 
 @app.get("/")
 async def index(request : Request):
-    return templates.TemplateResponse(request=request, name="index.html", context={})
+    history = get_recent_queries()
+
+    return templates.TemplateResponse(
+        request=request, 
+        name="index.html", 
+        context={"history": history})
 
 @app.post("/weather")
 async def weather(
@@ -34,6 +39,8 @@ async def weather(
 
     except RuntimeError:
         context = {"error": "API key not found. Please set the OPENWEATHERMAP_API_KEY environment variable."}
+
+    context["history"] = get_recent_queries()
 
     return templates.TemplateResponse(request=request, name="index.html", context=context)
 
@@ -75,3 +82,7 @@ def save_weather_query(weather_data: dict[str, str | float]) -> None:
 
         session.add(query)
         session.commit()
+
+def get_recent_queries() -> list[WeatherQuery]:
+    with SessionLocal() as session:
+        return session.query(WeatherQuery).order_by(WeatherQuery.created_at.desc()).limit(10).all()

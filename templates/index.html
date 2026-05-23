@@ -27,5 +27,18 @@
         {% if error %}
             <p style="color: red;">{{ error }}</p>
         {% endif %}
+
+        <h2>history of search</h2>
+        {% if history %}
+            <ul>
+                {% for item in history %}
+                    <li>
+                        {{item.created_at}} - {{item.city}} - {{item.temperature}} {{item.unit}}, {{item.description}}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>no search history yet</p>
+        {% endif %}
     </body>
 </html>
