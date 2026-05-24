@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, Form, Query
 from fastapi.templating import Jinja2Templates
 import httpx
 from typing import Annotated
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from .config import settings
 
 from app.database import SessionLocal
@@ -48,7 +48,20 @@ async def weather(
     unit: Annotated[str, Form()]
 ):
     try:
-        weather_data = get_weather_data(city, unit)
+        cached_weather = get_cached_weather(city, unit)
+
+        if cached_weather:
+            weather_data = {
+                "city": cached_weather.city,
+                "temperature": cached_weather.temperature,
+                "description": cached_weather.description,
+                "unit": cached_weather.unit,
+                "served_from_cache": True,
+            }
+        else:
+            weather_data = get_weather_data(city, unit)
+            weather_data["served_from_cache"] = False
+
         save_weather_query(weather_data)
         context = {"weather_data": weather_data}
 
@@ -69,10 +82,7 @@ async def weather(
 
     return templates.TemplateResponse(request=request, name="index.html", context=context)
 
-def get_weather_data(
-    city: str,
-    unit: str
-) -> dict[str, str | float]:
+def get_weather_data(city: str, unit: str) -> dict[str, str | float | bool]:
     api_key = settings.openweathermap_api_key
 
     if not api_key:
@@ -102,11 +112,25 @@ def save_weather_query(weather_data: dict[str, str | float]) -> None:
             temperature=float(weather_data["temperature"]),
             description=str(weather_data["description"]),
             unit=str(weather_data["unit"]),
-            served_from_cache=False
+            served_from_cache=bool(weather_data["served_from_cache"]),
         )
 
         session.add(query)
         session.commit()
+
+def get_cached_weather(city: str, unit: str) -> WeatherQuery | None:
+    five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+
+    with SessionLocal() as session:
+        return (
+            session.query(WeatherQuery)
+            .filter(WeatherQuery.city.ilike(city))
+            .filter(WeatherQuery.unit == unit)
+            .filter(WeatherQuery.created_at >= five_minutes_ago)
+            .filter(WeatherQuery.served_from_cache == False)
+            .order_by(WeatherQuery.created_at.desc())
+            .first()
+        )
 
 def get_history(
     page: int,

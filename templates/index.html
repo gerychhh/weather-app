@@ -22,6 +22,9 @@
         {% if weather_data %}
             <p>weather in {{ weather_data.city }}: {{ weather_data.temperature }} {{ weather_data.unit }}</p>
             <p>{{ weather_data.description }}</p>
+            {% if weather_data.served_from_cache %}
+                <p>served from cache</p>
+            {% endif %}
         {% endif %}
 
         {% if error %}
