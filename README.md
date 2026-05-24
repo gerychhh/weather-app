@@ -16,11 +16,57 @@ Simple FastAPI web application for fetching current weather by city, storing que
 
 ## Requirements
 
-- Python 3.10+
-- PostgreSQL
 - OpenWeatherMap API key
+- Docker and Docker Compose for the easiest setup
+- Python 3.10+ and PostgreSQL if you want to run the app without Docker
 
-## Local Setup
+## Quick Start With Docker
+
+This is the simplest way to run the project from a clean clone. Docker Compose starts PostgreSQL, applies migrations, and runs the FastAPI app.
+
+Clone the repository and enter the project folder:
+
+```powershell
+git clone https://github.com/gerychhh/weather-app.git
+cd weather-app
+```
+
+Create your local environment file:
+
+```powershell
+Copy-Item .env.sample .env
+```
+
+Open `.env` and add your OpenWeatherMap API key:
+
+```env
+OPENWEATHERMAP_API_KEY=your_api_key_here
+DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/weather_app
+```
+
+For Docker, only `OPENWEATHERMAP_API_KEY` needs to be changed. Docker Compose provides its own database connection for the app.
+
+Run the app:
+
+```powershell
+docker compose up --build
+```
+
+Open the app:
+
+```text
+http://127.0.0.1:8000
+```
+
+Stop the app when you are done:
+
+```powershell
+docker compose down
+```
+
+## Local Setup Without Docker
+
+Use this path if PostgreSQL is already installed locally.
 
 Create and activate a virtual environment:
 
@@ -37,12 +83,24 @@ python -m pip install -r requirements.txt
 
 Create `.env` from `.env.sample`:
 
+```powershell
+Copy-Item .env.sample .env
+```
+
+Then edit `.env`:
+
 ```env
 OPENWEATHERMAP_API_KEY=your_api_key_here
 DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/weather_app
 ```
 
 If your database password contains special URL characters, encode them. For example, `@` becomes `%40`.
+
+Create a local PostgreSQL database named `weather_app`. You can do it from pgAdmin or with:
+
+```powershell
+createdb -U postgres weather_app
+```
 
 Apply database migrations:
 
@@ -61,22 +119,6 @@ Open:
 ```text
 http://127.0.0.1:8000
 ```
-
-## Docker Compose Quickstart
-
-Set `OPENWEATHERMAP_API_KEY` in your environment or `.env`, then run:
-
-```powershell
-docker compose up --build
-```
-
-The app will start at:
-
-```text
-http://127.0.0.1:8000
-```
-
-Docker Compose starts PostgreSQL, waits for it to become healthy, applies Alembic migrations, and then runs the FastAPI app.
 
 ## Useful Endpoints
 
