@@ -8,15 +8,53 @@ from sqlalchemy import text
 from typing import Annotated
 from datetime import date
 from io import StringIO
+from time import perf_counter
 
 from app.database import SessionLocal
 from app.history import get_history, get_history_for_export
+from app.logging_config import log_event
 from app.rate_limit import is_rate_limited
 from app.weather import get_cached_weather, get_weather_data, save_weather_query
 
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = perf_counter()
+    log_event(
+        "request_start",
+        method=request.method,
+        path=request.url.path,
+        client=request.client.host if request.client else "unknown",
+    )
+
+    try:
+        response = await call_next(request)
+
+    except Exception as exc:
+        duration_ms = round((perf_counter() - start_time) * 1000, 2)
+        log_event(
+            "error",
+            method=request.method,
+            path=request.url.path,
+            duration_ms=duration_ms,
+            error=str(exc),
+        )
+        raise
+
+    duration_ms = round((perf_counter() - start_time) * 1000, 2)
+    log_event(
+        "request_end",
+        method=request.method,
+        path=request.url.path,
+        status_code=response.status_code,
+        duration_ms=duration_ms,
+    )
+
+    return response
 
 @app.get("/")
 async def index(
@@ -134,12 +172,15 @@ async def weather(
         context = {"weather_data": weather_data}
 
     except httpx.HTTPStatusError:
+        log_event("error", error_type="weather_http_status", city=city, unit=unit)
         context = {"error": "City not found. Please try again."}
 
     except httpx.RequestError:
+        log_event("error", error_type="weather_request", city=city, unit=unit)
         context = {"error": "Network error. Please try again later."}
 
     except RuntimeError:
+        log_event("error", error_type="weather_config", city=city, unit=unit)
         context = {"error": "API key not found. Please set the OPENWEATHERMAP_API_KEY environment variable."}
 
     history, total_pages = get_history(page=1)
