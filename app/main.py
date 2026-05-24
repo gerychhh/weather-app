@@ -1,8 +1,11 @@
 from fastapi import FastAPI, Request, Form, Query
+from fastapi.responses import StreamingResponse
 from fastapi.templating import Jinja2Templates
+import csv
 import httpx
 from typing import Annotated
 from datetime import date, datetime, time, timedelta
+from io import StringIO
 from .config import settings
 
 from app.database import SessionLocal
@@ -39,6 +42,48 @@ async def index(
             "date_from": date_from,
             "date_to": date_to,
         },
+    )
+
+@app.get("/export.csv")
+async def export_history(
+    city: str | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+):
+    city_filter = city.strip() if city else None
+    rows = get_history_for_export(
+        city_filter=city_filter,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "city",
+        "temperature",
+        "unit",
+        "description",
+        "served_from_cache",
+        "created_at",
+    ])
+
+    for row in rows:
+        writer.writerow([
+            row.city,
+            row.temperature,
+            row.unit,
+            row.description,
+            row.served_from_cache,
+            row.created_at,
+        ])
+
+    output.seek(0)
+
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="weather_history.csv"'},
     )
 
 @app.post("/weather")
@@ -105,7 +150,7 @@ def get_weather_data(city: str, unit: str) -> dict[str, str | float | bool]:
         "unit": unit,
     }
 
-def save_weather_query(weather_data: dict[str, str | float]) -> None:
+def save_weather_query(weather_data: dict[str, str | float | bool]) -> None:
     with SessionLocal() as session:
         query = WeatherQuery(
             city=str(weather_data["city"]),
@@ -140,18 +185,12 @@ def get_history(
     per_page: int = 10,
 ) -> tuple[list[WeatherQuery], int]:
     with SessionLocal() as session:
-        query = session.query(WeatherQuery)
-
-        if city_filter:
-            query = query.filter(WeatherQuery.city.ilike(f"%{city_filter}%"))
-
-        if date_from:
-            start = datetime.combine(date_from, time.min)
-            query = query.filter(WeatherQuery.created_at >= start)
-
-        if date_to:
-            end = datetime.combine(date_to, time.max)
-            query = query.filter(WeatherQuery.created_at <= end)
+        query = build_history_query(
+            session=session,
+            city_filter=city_filter,
+            date_from=date_from,
+            date_to=date_to,
+        )
 
         total = query.count()
         total_pages = max((total + per_page - 1) // per_page, 1)
@@ -163,3 +202,39 @@ def get_history(
             .all()
         )
     return history, total_pages
+
+def get_history_for_export(
+    city_filter: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> list[WeatherQuery]:
+    with SessionLocal() as session:
+        query = build_history_query(
+            session=session,
+            city_filter=city_filter,
+            date_from=date_from,
+            date_to=date_to,
+        )
+
+        return query.order_by(WeatherQuery.created_at.desc()).all()
+
+def build_history_query(
+    session,
+    city_filter: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+):
+    query = session.query(WeatherQuery)
+
+    if city_filter:
+        query = query.filter(WeatherQuery.city.ilike(f"%{city_filter}%"))
+
+    if date_from:
+        start = datetime.combine(date_from, time.min)
+        query = query.filter(WeatherQuery.created_at >= start)
+
+    if date_to:
+        end = datetime.combine(date_to, time.max)
+        query = query.filter(WeatherQuery.created_at <= end)
+
+    return query
