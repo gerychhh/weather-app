@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Request, Form, Query
+from fastapi import FastAPI, Request, Form, Query, status
+from fastapi.responses import JSONResponse
 from fastapi.responses import StreamingResponse
 from fastapi.templating import Jinja2Templates
 import csv
 import httpx
+from sqlalchemy import text
 from typing import Annotated
 from datetime import date, datetime, time, timedelta
 from io import StringIO
@@ -85,6 +87,20 @@ async def export_history(
         media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="weather_history.csv"'},
     )
+
+@app.get("/health")
+async def health():
+    try:
+        with SessionLocal() as session:
+            session.execute(text("SELECT 1"))
+
+    except Exception:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "error", "database": "unavailable"},
+        )
+
+    return {"status": "ok", "database": "ok"}
 
 @app.post("/weather")
 async def weather(
