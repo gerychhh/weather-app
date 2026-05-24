@@ -9,7 +9,7 @@ Simple FastAPI web application for fetching current weather by city, storing que
 - Store every successful query in PostgreSQL.
 - Reuse cached weather for the same city and unit within 5 minutes.
 - Show query history with pagination, city filter, and date range filter.
-- Export filtered history as CSV.
+- Export full or filtered history as CSV.
 - Basic per-IP rate limiting for weather requests.
 - Health check endpoint for database connectivity.
 - Alembic migrations and targeted pytest coverage.
@@ -82,7 +82,7 @@ Docker Compose starts PostgreSQL, waits for it to become healthy, applies Alembi
 
 - `GET /` - search form and query history.
 - `POST /weather` - fetch weather for a submitted city.
-- `GET /export.csv` - export filtered query history.
+- `GET /export.csv` - export full or filtered query history.
 - `GET /health` - check database connectivity.
 
 Example filtered export:
@@ -90,6 +90,8 @@ Example filtered export:
 ```text
 /export.csv?city=minsk&date_from=2026-05-01&date_to=2026-05-24
 ```
+
+Without query parameters, the export includes the full query history.
 
 ## Tests
 
@@ -103,4 +105,5 @@ Current tests cover:
 
 - cache reuse vs fresh weather fetch;
 - rate limit returning `429` before weather processing;
-- history city filtering and pagination.
+- history city filtering and pagination;
+- CSV export with empty filters.

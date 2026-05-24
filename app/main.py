@@ -5,7 +5,7 @@ from time import perf_counter
 from typing import Annotated
 
 import httpx
-from fastapi import FastAPI, Form, Query, Request, status
+from fastapi import FastAPI, Form, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import text
@@ -19,6 +19,20 @@ from app.weather import get_cached_weather, get_weather_data, save_weather_query
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
+
+
+def parse_optional_date(value: str | None) -> date | None:
+    if not value:
+        return None
+
+    try:
+        return date.fromisoformat(value)
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid date format. Use YYYY-MM-DD.",
+        ) from exc
 
 
 @app.middleware("http")
@@ -61,10 +75,12 @@ async def index(
     request: Request,
     page: int = Query(1, ge=1),
     city: str | None = Query(None),
-    date_from: date | None = Query(None),
-    date_to: date | None = Query(None),
+    date_from_raw: str | None = Query(None, alias="date_from"),
+    date_to_raw: str | None = Query(None, alias="date_to"),
 ):
     city_filter = city.strip() if city else None
+    date_from = parse_optional_date(date_from_raw)
+    date_to = parse_optional_date(date_to_raw)
     history, total_pages = get_history(
         page=page,
         city_filter=city_filter,
@@ -88,10 +104,12 @@ async def index(
 @app.get("/export.csv")
 async def export_history(
     city: str | None = Query(None),
-    date_from: date | None = Query(None),
-    date_to: date | None = Query(None),
+    date_from_raw: str | None = Query(None, alias="date_from"),
+    date_to_raw: str | None = Query(None, alias="date_to"),
 ):
     city_filter = city.strip() if city else None
+    date_from = parse_optional_date(date_from_raw)
+    date_to = parse_optional_date(date_to_raw)
     rows = get_history_for_export(
         city_filter=city_filter,
         date_from=date_from,
