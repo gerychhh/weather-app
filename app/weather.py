@@ -13,7 +13,9 @@ def get_weather_data(city: str, unit: str) -> dict[str, str | float | bool]:
     api_key = settings.openweathermap_api_key
 
     if not api_key:
-        raise RuntimeError("API key not found. Please set the OPENWEATHERMAP_API_KEY environment variable.")
+        raise RuntimeError(
+            "API key not found. Please set the OPENWEATHERMAP_API_KEY environment variable."
+        )
 
     start_time = perf_counter()
 
@@ -80,7 +82,7 @@ def get_cached_weather(city: str, unit: str) -> WeatherQuery | None:
             .filter(WeatherQuery.city.ilike(city))
             .filter(WeatherQuery.unit == unit)
             .filter(WeatherQuery.created_at >= five_minutes_ago)
-            .filter(WeatherQuery.served_from_cache == False)
+            .filter(WeatherQuery.served_from_cache.is_(False))
             .order_by(WeatherQuery.created_at.desc())
             .first()
         )

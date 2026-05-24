@@ -1,14 +1,14 @@
-from fastapi import FastAPI, Request, Form, Query, status
-from fastapi.responses import JSONResponse
-from fastapi.responses import StreamingResponse
-from fastapi.templating import Jinja2Templates
 import csv
-import httpx
-from sqlalchemy import text
-from typing import Annotated
 from datetime import date
 from io import StringIO
 from time import perf_counter
+from typing import Annotated
+
+import httpx
+from fastapi import FastAPI, Form, Query, Request, status
+from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import text
 
 from app.database import SessionLocal
 from app.history import get_history, get_history_for_export
@@ -73,8 +73,8 @@ async def index(
     )
 
     return templates.TemplateResponse(
-        request=request, 
-        name="index.html", 
+        request=request,
+        name="index.html",
         context={
             "history": history,
             "total_pages": total_pages,
@@ -100,24 +100,28 @@ async def export_history(
 
     output = StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "city",
-        "temperature",
-        "unit",
-        "description",
-        "served_from_cache",
-        "created_at",
-    ])
+    writer.writerow(
+        [
+            "city",
+            "temperature",
+            "unit",
+            "description",
+            "served_from_cache",
+            "created_at",
+        ]
+    )
 
     for row in rows:
-        writer.writerow([
-            row.city,
-            row.temperature,
-            row.unit,
-            row.description,
-            row.served_from_cache,
-            row.created_at,
-        ])
+        writer.writerow(
+            [
+                row.city,
+                row.temperature,
+                row.unit,
+                row.description,
+                row.served_from_cache,
+                row.created_at,
+            ]
+        )
 
     output.seek(0)
 
@@ -143,9 +147,9 @@ async def health():
 
 @app.post("/weather")
 async def weather(
-    request : Request,
+    request: Request,
     city: Annotated[str, Form()],
-    unit: Annotated[str, Form()]
+    unit: Annotated[str, Form()],
 ):
     if is_rate_limited(request):
         return JSONResponse(
@@ -181,7 +185,9 @@ async def weather(
 
     except RuntimeError:
         log_event("error", error_type="weather_config", city=city, unit=unit)
-        context = {"error": "API key not found. Please set the OPENWEATHERMAP_API_KEY environment variable."}
+        context = {
+            "error": "API key not found. Please set the OPENWEATHERMAP_API_KEY environment variable."
+        }
 
     history, total_pages = get_history(page=1)
 
