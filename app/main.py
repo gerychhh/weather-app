@@ -6,12 +6,12 @@ import csv
 import httpx
 from sqlalchemy import text
 from typing import Annotated
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time
 from io import StringIO
-from .config import settings
 
 from app.database import SessionLocal
 from app.models import WeatherQuery
+from app.weather import get_cached_weather, get_weather_data, save_weather_query
 
 
 app = FastAPI()
@@ -168,56 +168,6 @@ def is_rate_limited(request: Request, limit: int = 30, window_seconds: int = 60)
     recent_requests.append(now)
     rate_limit_storage[client_ip] = recent_requests
     return False
-
-def get_weather_data(city: str, unit: str) -> dict[str, str | float | bool]:
-    api_key = settings.openweathermap_api_key
-
-    if not api_key:
-        raise RuntimeError("API key not found. Please set the OPENWEATHERMAP_API_KEY environment variable.")
-    
-    url = settings.openweathermap_api_url
-
-    response = httpx.get(
-        url,
-        params={"q": city, "units": unit, "appid": api_key},
-        timeout=10)
-    
-    response.raise_for_status()
-    data = response.json()
-    
-    return {
-        "city": data["name"],
-        "temperature": data["main"]["temp"],
-        "description": data["weather"][0]["description"],
-        "unit": unit,
-    }
-
-def save_weather_query(weather_data: dict[str, str | float | bool]) -> None:
-    with SessionLocal() as session:
-        query = WeatherQuery(
-            city=str(weather_data["city"]),
-            temperature=float(weather_data["temperature"]),
-            description=str(weather_data["description"]),
-            unit=str(weather_data["unit"]),
-            served_from_cache=bool(weather_data["served_from_cache"]),
-        )
-
-        session.add(query)
-        session.commit()
-
-def get_cached_weather(city: str, unit: str) -> WeatherQuery | None:
-    five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
-
-    with SessionLocal() as session:
-        return (
-            session.query(WeatherQuery)
-            .filter(WeatherQuery.city.ilike(city))
-            .filter(WeatherQuery.unit == unit)
-            .filter(WeatherQuery.created_at >= five_minutes_ago)
-            .filter(WeatherQuery.served_from_cache == False)
-            .order_by(WeatherQuery.created_at.desc())
-            .first()
-        )
 
 def get_history(
     page: int,
