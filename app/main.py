@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, Form, Query
 from fastapi.templating import Jinja2Templates
 import httpx
 from typing import Annotated
+from datetime import date, datetime, time
 from .config import settings
 
 from app.database import SessionLocal
@@ -16,9 +17,16 @@ async def index(
     request: Request,
     page: int = Query(1, ge=1),
     city: str | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
 ):
     city_filter = city.strip() if city else None
-    history, total_pages = get_history(page=page, city_filter=city_filter)
+    history, total_pages = get_history(
+        page=page,
+        city_filter=city_filter,
+        date_from=date_from,
+        date_to=date_to,
+    )
 
     return templates.TemplateResponse(
         request=request, 
@@ -28,6 +36,8 @@ async def index(
             "total_pages": total_pages,
             "page": page,
             "city_filter": city_filter,
+            "date_from": date_from,
+            "date_to": date_to,
         },
     )
 
@@ -101,6 +111,8 @@ def save_weather_query(weather_data: dict[str, str | float]) -> None:
 def get_history(
     page: int,
     city_filter: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     per_page: int = 10,
 ) -> tuple[list[WeatherQuery], int]:
     with SessionLocal() as session:
@@ -108,6 +120,14 @@ def get_history(
 
         if city_filter:
             query = query.filter(WeatherQuery.city.ilike(f"%{city_filter}%"))
+
+        if date_from:
+            start = datetime.combine(date_from, time.min)
+            query = query.filter(WeatherQuery.created_at >= start)
+
+        if date_to:
+            end = datetime.combine(date_to, time.max)
+            query = query.filter(WeatherQuery.created_at <= end)
 
         total = query.count()
         total_pages = max((total + per_page - 1) // per_page, 1)
