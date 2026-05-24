@@ -6,17 +6,17 @@ import csv
 import httpx
 from sqlalchemy import text
 from typing import Annotated
-from datetime import date, datetime, timedelta
+from datetime import date
 from io import StringIO
 
 from app.database import SessionLocal
 from app.history import get_history, get_history_for_export
+from app.rate_limit import is_rate_limited
 from app.weather import get_cached_weather, get_weather_data, save_weather_query
 
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
-rate_limit_storage: dict[str, list[datetime]] = {}
 
 @app.get("/")
 async def index(
@@ -149,22 +149,3 @@ async def weather(
     context["total_pages"] = total_pages
 
     return templates.TemplateResponse(request=request, name="index.html", context=context)
-
-def is_rate_limited(request: Request, limit: int = 30, window_seconds: int = 60) -> bool:
-    client_ip = request.client.host if request.client else "unknown"
-    now = datetime.utcnow()
-    window_start = now - timedelta(seconds=window_seconds)
-
-    recent_requests = [
-        request_time
-        for request_time in rate_limit_storage.get(client_ip, [])
-        if request_time >= window_start
-    ]
-
-    if len(recent_requests) >= limit:
-        rate_limit_storage[client_ip] = recent_requests
-        return True
-
-    recent_requests.append(now)
-    rate_limit_storage[client_ip] = recent_requests
-    return False
